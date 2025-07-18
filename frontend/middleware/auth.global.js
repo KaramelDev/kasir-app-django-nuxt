@@ -8,8 +8,14 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   // Pastikan store diinisialisasi
   // Jika Anda menyimpan token di localStorage, initAuth akan membaca itu
   // dan mengatur authStore.loggedIn
-  if (process.client) { // Hanya jalankan di sisi klien setelah hidrasi
-    await authStore.initAuth(); // Misalnya, baca token dari localStorage
+  if (process.client && !authStore.loggedIn && localStorage.getItem('authStore')) {
+    // Memuat ulang state dari persisted state jika belum login tapi ada data
+    // Pinia-plugin-persistedstate biasanya menangani ini secara otomatis,
+    // tapi ini sebagai fallback atau untuk memastikan state terisi sebelum middleware lain berjalan.
+    await authStore.initAuth(); // Pastikan Anda memiliki aksi ini di store Anda
+  }
+  if (!authStore.isAuthenticated && to.path !== '/login') {
+    return navigateTo('/login');
   }
 
   const publicPages = ['/login']; // Daftar rute yang bisa diakses tanpa login
@@ -22,7 +28,28 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   }
 
   // Jika sudah login tapi mencoba mengakses halaman login
-  if (to.path === '/login' && authStore.loggedIn) {
-    return navigateTo('/'); // Redirect ke dashboard
+  if (authStore.isAuthenticated && to.path === '/login') {
+    // Redirect ke dashboard atau halaman default yang sesuai role
+    if (authStore.isUserAdmin || authStore.user?.is_superuser) {
+      return navigateTo('/admin'); // Admin ke Dashboard utama
+    } else if (authStore.isUserCashier) {
+      return navigateTo('/'); // Kasir ke Dashboard utama
+    }
+    // Jika tidak ada role yang dikenali, tetap ke dashboard default
+    return navigateTo('/'); 
+  }
+  if (to.path.startsWith('/admin')) {
+    if (!authStore.isUserAdmin && !authStore.user?.is_superuser) {
+      // Jika bukan admin atau superuser, redirect ke dashboard atau halaman yang diizinkan
+      return navigateTo('/'); 
+    }
+     } else if (to.path === '/') { // Jika mencoba mengakses rute root '/'
+    if (authStore.isAuthenticated) {
+        if (authStore.isUserAdmin || authStore.user?.is_superuser) {
+            // Jika Admin mengakses '/', redirect ke '/admin'
+            return navigateTo('/admin');
+        }
+        // Jika Kasir mengakses '/', biarkan tetap di '/' (Dashboard Kasir)
+    }
   }
 });

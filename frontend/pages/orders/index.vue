@@ -52,7 +52,7 @@
         <tbody class="bg-white divide-y divide-gray-200">
           <tr v-for="order in filteredOrders" :key="order.id">
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{{ order.id }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(order.order_date) }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(order.created_at) }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rp {{ order.total_amount ? order.total_amount.toLocaleString('id-ID') : '0' }}</td>
             <td class="px-6 py-4 whitespace-nowrap">
               <span :class="getStatusClass(order.status || '')" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full capitalize">
@@ -81,7 +81,7 @@
         <h3 class="text-2xl font-bold mb-4">{{ isEditing ? 'Edit Transaksi' : 'Detail Transaksi' }} #{{ currentOrder?.id }}</h3>
         
         <div v-if="!isEditing && currentOrder" class="mb-4">
-          <p><strong>Tanggal:</strong> {{ formatDate(currentOrder.order_date) }}</p>
+          <p><strong>Tanggal:</strong> {{ formatDate(currentOrder.created_at) }}</p>
           <p><strong>Total:</strong> Rp {{ currentOrder.total_amount ? currentOrder.total_amount.toLocaleString('id-ID') : '0' }}</p>
           <p><strong>Status:</strong> 
             <span :class="getStatusClass(currentOrder.status || '')" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full capitalize">
@@ -91,9 +91,22 @@
           <p><strong>Pelanggan:</strong> {{ currentOrder.customer_name || 'Umum' }}</p>
 
           <h4 class="text-lg font-semibold mt-4 mb-2">Item Transaksi:</h4>
-          <ul class="list-disc pl-5">
-            <li v-for="item in (currentOrder.items || [])" :key="item.id" class="mb-1 text-gray-700">
-              {{ item.product_name || 'Produk Tidak Dikenal' }} ({{ item.quantity || 0 }} x Rp {{ item.price ? item.price.toLocaleString('id-ID') : '0' }}) = Rp {{ (item.quantity * item.price) ? (item.quantity * item.price).toLocaleString('id-ID') : '0' }}
+          <ul class="space-y-3">
+            <li v-for="item in (currentOrder.items || [])" :key="item.id" class="flex items-center gap-3 p-2 border rounded-md bg-gray-50">
+              <img
+                v-if="item.product && item.product.image"
+                :src="productImageUrl(item.product.image)"
+                :alt="item.product.name"
+                class="w-16 h-16 object-cover rounded-md flex-shrink-0"
+              />
+              <div v-else class="w-16 h-16 bg-gray-200 flex items-center justify-center rounded-md flex-shrink-0">
+                  <span class="text-gray-400 text-xs text-center">No Image</span>
+              </div>
+              <div class="flex-grow">
+                <p class="font-bold text-gray-800">{{ item.product ? item.product.name : 'Produk Dihapus' }}</p>
+                <p class="text-sm text-gray-600">Qty: {{ item.quantity || 0 }} x Rp {{ item.price_at_purchase ? item.price_at_purchase.toLocaleString('id-ID') : '0' }}</p>
+                <p class="text-sm font-semibold text-gray-700">Subtotal: Rp {{ (item.quantity * item.price_at_purchase) ? (item.quantity * item.price_at_purchase).toLocaleString('id-ID') : '0' }}</p>
+              </div>
             </li>
           </ul>
         </div>
@@ -177,13 +190,16 @@
 </template>
 
 <script setup>
+
+
 import { ref, computed, onMounted } from 'vue';
 import { useOrderStore } from '~/store/orders'; // Import dari file terpisah
 
 const orderStore = useOrderStore();
+const runtimeConfig = useRuntimeConfig(); // Untuk mengakses base URL media
 
 const searchQuery = ref('');
-const filterDate = ref('');
+const filterDate = ref('order.created_at');
 const filterStatus = ref('');
 
 const showOrderModal = ref(false);
@@ -192,6 +208,16 @@ const currentOrder = ref(null); // Untuk detail atau data edit transaksi
 
 const showDeleteConfirmModal = ref(false);
 const orderToDelete = ref(null); // Menyimpan ID transaksi yang akan dihapus
+
+// Fungsi untuk mendapatkan URL gambar yang lengkap
+const productImageUrl = (relativePath) => {
+    if (relativePath) {
+        // Pastikan URL media backend Anda benar
+        return `${runtimeConfig.public.mediaBaseUrl}${relativePath}`;
+    }
+    return ''; // Atau berikan URL placeholder default
+};
+
 
 // Computed property untuk filter transaksi
 const filteredOrders = computed(() => {
@@ -203,7 +229,10 @@ const filteredOrders = computed(() => {
     orders = orders.filter(order =>
       order.id?.toString().includes(query) || // Gunakan optional chaining
       (order.customer_name && order.customer_name.toLowerCase().includes(query)) ||
-      (order.status && order.status.toLowerCase().includes(query))
+      (order.status && order.status.toLowerCase().includes(query)) ||
+      (order.items && order.items.some(item => // Cari di nama produk dalam item
+          item.product && item.product.name && item.product.name.toLowerCase().includes(query)
+      ))
     );
   }
 
@@ -284,6 +313,7 @@ const saveOrder = async () => {
       customer_name: currentOrder.value.customer_name
     };
     
+    // Perbarui order di backend
     const success = await orderStore.updateOrder(currentOrder.value.id, payload);
     if (success) {
       closeOrderModal();

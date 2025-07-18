@@ -1,26 +1,56 @@
 # cashier_backend/orders/views.py
 
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import action
+from django.db.models import Sum, F
+from datetime import date, datetime, time
+from django.utils import timezone
 from django.db import transaction # Penting untuk atomicity
 from django.db.models import Sum, Count # Diperlukan untuk daily_summary
 from django.utils import timezone # Diperlukan untuk daily_summary
 from datetime import timedelta # Diperlukan untuk daily_summary
+from cashier_backend.permissions import IsAdminUser, IsCashierOrAdmin, IsOwnerOrAdmin 
 
-from .serializers import OrderSerializer, OrderItemSerializer
+
+
+from .serializers import OrderSerializer, OrderItemSerializer, CashierRegistrationSerializer,User
 from .models import Order, OrderItem
 from products.models import Product # Import model Product
 from decimal import Decimal # Import Decimal untuk akurasi harga
+
+
+
+from rest_framework import mixins, generics # Import ini
+# Import serializer baru
+ 
+# Import permission yang sudah kita buat
+
 
 # Jika Anda menggunakan otentikasi (seperti JWT atau Session)
 # from rest_framework.permissions import IsAuthenticated
 
 class OrderViewSet(viewsets.ModelViewSet):
-    queryset = Order.objects.all()
+    queryset = Order.objects.prefetch_related('items__product').all().order_by('-created_at')
     serializer_class = OrderSerializer
     # Jika Anda memerlukan otentikasi, aktifkan baris ini:
     # permission_classes = [IsAuthenticated] 
+
+    def get_permissions(self):
+        # ... (print statements) ...
+
+        # Jika Anda tidak memakai shortcut admin di atas:
+        if self.action in ['list', 'retrieve', 'today_orders', 'daily_summary','categories']: # <-- TAMBAHKAN 'daily_summary' DI SINI
+            permission_classes = [IsAuthenticated, IsCashierOrAdmin]
+        elif self.action == 'create':
+            permission_classes = [IsAuthenticated, IsCashierOrAdmin]
+        elif self.action in ['update', 'partial_update', 'destroy']:
+            permission_classes = [IsAuthenticated, IsOwnerOrAdmin]
+        else: # Ini adalah fallback, sebaiknya hindari jika semua action perlu izin spesifik
+            permission_classes = [IsAuthenticated] 
+        return [permission() for permission in permission_classes]
+
 
     @action(detail=False, methods=['post'], url_path='process_checkout')
     def process_checkout(self, request):
@@ -135,3 +165,19 @@ class OrderViewSet(viewsets.ModelViewSet):
             'total_transactions': total_transactions,
             # 'top_selling_items': list(top_selling_items), # Uncomment jika diaktifkan
         }, status=status.HTTP_200_OK)
+        
+class CashierRegistrationView(generics.CreateAPIView):
+   
+    
+    queryset = User.objects.all() # Queryset dasar, tidak terlalu penting untuk CreateAPIView
+    serializer_class = CashierRegistrationSerializer
+    permission_classes = [IsAdminUser] 
+
+    # ---
+    
+    # ## **`daily_summary` Action**
+    
+    # Ini adalah action yang akan melayani permintaan GET ke `/api/orders/daily_summary/`.
+
+    # ```python
+    

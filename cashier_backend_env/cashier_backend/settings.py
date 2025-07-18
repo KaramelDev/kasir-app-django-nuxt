@@ -42,7 +42,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders', # Tambahkan ini
     'products',    # Akan kita buat nanti
-    'orders',      
+    'orders',
+    'users',      
 ]
 # Konfigurasi CORS (sesuaikan dengan URL frontend Anda)
 # cashier_backend/cashier_backend/settings.py
@@ -168,7 +169,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Jakarta' 
 
 USE_I18N = True
 

@@ -1,7 +1,7 @@
 <template>
   <div class="flex items-center py-3">
     <img
-      :src="item.image || '/images/default-product.png'" alt="Product Image"
+      :src="item.image" :alt="item.name"
       class="w-16 h-16 object-cover rounded-md mr-4"
     />
     <div>
@@ -36,4 +36,6 @@ const updateQuantity = (id, change) => {
 const removeFromCart = (id) => {
   cartStore.removeFromCart(id);
 };
+
+
 </script>

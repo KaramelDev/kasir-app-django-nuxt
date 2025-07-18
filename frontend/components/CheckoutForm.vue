@@ -1,6 +1,6 @@
 <template>
   <div class="p-4 border rounded-lg shadow-md">
-    <h3 class="text-xl font-bold mb-4">Total Belanja: Rp {{ (cartStore.cartTotal ?? 0).toLocaleString('id-ID') }}</h3>
+    <h3 class="text-xl font-bold mb-4">Total Belanja: Rp {{ (cartStore.totalAmount ?? 0).toLocaleString('id-ID') }}</h3>
     <div class="mb-4">
       <label for="paymentMethod" class="block text-gray-700 text-sm font-bold mb-2">Metode Pembayaran:</label>
       <select v-model="paymentMethod" id="paymentMethod" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
@@ -10,7 +10,7 @@
       </select>
     </div>
     <button
-      @click ="processCheckout"
+      @click="processCheckout"
       :disabled="cartStore.totalItems === 0 || processing"
       class="bg-green-500 text-white py-2 px-4 rounded w-full hover:bg-green-600 disabled:bg-gray-400"
     >
@@ -33,7 +33,7 @@ const paymentMethod = ref('cash');
 const processing = ref(false);
 const checkoutError = ref(null);
 const checkoutSuccess = ref(null);
-const emit = defineEmits(['checkoutSuccess']); 
+const emit = defineEmits(['checkoutSuccess']); // Ini bagus, tapi tidak digunakan dalam kode yang Anda berikan.
 
 const processCheckout = async () => {
   processing.value = true;
@@ -41,36 +41,27 @@ const processCheckout = async () => {
   checkoutSuccess.value = null;
   try {
     const orderData = {
-      // Perhatikan: cartStore.totalAmount yang benar dari store/cart.js
-      total_amount: cartStore.totalAmount, 
+      total_amount: cartStore.totalAmount, // Ini sudah benar
       payment_method: paymentMethod.value,
       items: cartStore.items.map(item => ({
         product: item.id,
         quantity: item.quantity,
-        price_at_purchase: item.price,
+        price_at_purchase: item.price, // Pastikan field ini sesuai dengan serializer Django Anda
       })),
     };
     
     // Panggil aksi addOrder dari orderStore
-    // Aksi addOrder di store/orders.js mengembalikan boolean (true/false)
-    // dan menambahkan order ke state orders.
-    // Jika Anda ingin ID order, Anda bisa mendapatkannya dari orderStore.orders[orderStore.orders.length - 1].id
-    // setelah addOrder berhasil, atau modify addOrder di store untuk mengembalikan data order.
-    const success = await orderStore.addOrder(orderData); 
+    // Asumsi addOrder di store/orders.js akan berkomunikasi dengan backend
+    // dan mengembalikan data pesanan yang telah dibuat, termasuk ID-nya.
+    const newOrder = await orderStore.addOrder(orderData); 
     
-    if (success) {
-      // Dapatkan ID order dari item terakhir di orderStore.orders
-      // Ini asumsi bahwa addOrder di store menambahkan order baru ke array 'orders'.
-      const latestOrder = orderStore.orders[orderStore.orders.length - 1];
-      if (latestOrder && latestOrder.id) {
-        checkoutSuccess.value = latestOrder.id;
-      } else {
-        checkoutSuccess.value = 'Pesanan berhasil diproses (ID tidak tersedia).';
-      }
+    if (newOrder && newOrder.id) { // Periksa apakah order berhasil dibuat dan memiliki ID
+      checkoutSuccess.value = newOrder.id;
       cartStore.clearCart(); // Bersihkan keranjang setelah berhasil checkout
+      // emit('checkoutSuccess', newOrder.id); // Jika Anda ingin memancarkan event ke parent
     } else {
-        // Jika addOrder mengembalikan false, berarti ada error di store
-        checkoutError.value = orderStore.error?.message || 'Terjadi kesalahan saat memproses pembayaran.';
+      // Jika addOrder mengembalikan null/undefined atau tidak ada ID
+      checkoutError.value = orderStore.error?.message || 'Terjadi kesalahan saat memproses pembayaran.';
     }
 
   } catch (error) {

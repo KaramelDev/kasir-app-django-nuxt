@@ -1,30 +1,8 @@
 <template>
   <div class="container mx-auto p-4 flex flex-col lg:flex-row gap-6">
     <div class="flex-1 flex flex-col gap-6">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div v-if="dailySummary" class="bg-white p-5 rounded-lg shadow-md flex items-center justify-between">
-          <div>
-            <h3 class="text-lg font-semibold text-gray-500">Penjualan Hari Ini</h3>
-            <p class="text-3xl font-bold text-green-600">Rp {{ dailySummary.totalSales.toLocaleString('id-ID') }}</p>
-          </div>
-          <Icon name="mdi:cash-multiple" class="text-green-600 text-4xl" />
-        </div>
-        <div v-if="dailySummary" class="bg-white p-5 rounded-lg shadow-md flex items-center justify-between">
-          <div>
-            <h3 class="text-lg font-semibold text-gray-500">Jumlah Transaksi Hari Ini</h3>
-            <p class="text-3xl font-bold text-blue-600">{{ dailySummary.totalOrders }}</p>
-          </div>
-          <Icon name="mdi:receipt-text-outline" class="text-blue-600 text-4xl" />
-        </div>
-        <div class="bg-white p-5 rounded-lg shadow-md flex items-center justify-between">
-          <div>
-            <h3 class="text-lg font-semibold text-gray-500">Stok Rendah</h3>
-            <p class="text-3xl font-bold text-orange-600">{{ lowStockProducts.length }}</p>
-          </div>
-          <Icon name="mdi:alert-circle-outline" class="text-orange-600 text-4xl" />
-        </div>
-      </div>
-      <br>
+      
+      
       <div class="bg-white p-6 rounded-lg shadow-md">
         <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
           <h2 class="text-xl font-bold text-center md:text-left w-full md:w-auto">Daftar Produk</h2>
@@ -46,9 +24,7 @@
               </option>
             </select>
           </div>
-          <button @click="showAddCategoryModal = true" class="bg-purple-500 text-white font-bold py-2 px-4 rounded hover:bg-purple-600 focus:outline-none focus:shadow-outline w-full md:w-auto mt-2 md:mt-0">
-            + Tambah Kategori
-          </button>
+          
         </div>
 
         <div v-if="productStore.loading" class="text-center text-gray-500 py-10">
@@ -60,6 +36,7 @@
         </div>
         <div v-else-if="filteredProducts && filteredProducts.length === 0" class="text-center text-gray-500 py-10">
           <p>Tidak ada produk yang ditemukan.</p>
+         
         </div>
         <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <ProductCard v-for="product in filteredProducts" :key="product.id" :product="product" />
@@ -76,49 +53,20 @@
       <CheckoutForm class="mt-6" />
     </div>
 
-    <div v-if="showAddCategoryModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-        <h3 class="text-lg font-bold mb-4">Tambah Kategori Baru</h3>
-        <form @submit.prevent="submitAddCategory">
-          <div class="mb-4">
-            <label for="categoryName" class="block text-gray-700 text-sm font-bold mb-2">Nama Kategori:</label>
-            <input
-              type="text"
-              id="categoryName"
-              v-model="newCategoryName"
-              required
-              class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            />
-          </div>
-          <p v-if="productStore.error" class="text-red-500 text-sm mb-4">{{ productStore.error }}</p>
-          <div class="flex justify-end gap-2">
-            <button
-              type="button"
-              @click="showAddCategoryModal = false; newCategoryName = ''; productStore.error = null"
-              class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded hover:bg-gray-400 focus:outline-none focus:shadow-outline"
-              :disabled="productStore.loading"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              class="bg-green-500 text-white font-bold py-2 px-4 rounded hover:bg-green-600 focus:outline-none focus:shadow-outline"
-              :disabled="productStore.loading"
-            >
-              {{ productStore.loading ? 'Menyimpan...' : 'Simpan' }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    
   </div>
 </template>
 
 <script setup>
+
+
+
 import { ref, computed, watch } from 'vue';
+import { onMounted } from 'vue';
 import { useProductStore } from '~/store/products';
 import { useCartStore } from '~/store/cart';
 import { useOrderStore } from '~/store/orders';
+
 import { useApiFetch, useApiClient } from '~/composables/useApiFetch'; // Pastikan kedua composable diimpor
 
 const productStore = useProductStore();
@@ -128,8 +76,8 @@ const orderStore = useOrderStore();
 const searchQuery = ref('');
 const selectedCategory = ref('');
 
-const showAddCategoryModal = ref(false);
-const newCategoryName = ref('');
+
+
 
 const dailySummary = ref({
   totalSales: 0,
@@ -162,6 +110,7 @@ const refreshAllEssentialData = async () => {
   console.log('Refreshing all essential data after transaction...');
   await refreshDailySummary(); // Refresh summary penjualan
   await productStore.fetchProducts(); // Refresh daftar produk (untuk update stok)
+  await productStore.fetchCategories(); // Refresh daftar produk (untuk update stok)
   // Anda mungkin juga ingin merefresh data lain jika ada
 };
 
@@ -201,17 +150,7 @@ const filteredProducts = computed(() => {
   return products;
 });
 
-const submitAddCategory = async () => {
-  if (!newCategoryName.value.trim()) {
-    productStore.error = 'Nama kategori tidak boleh kosong.';
-    return;
-  }
-  const success = await productStore.addCategory(newCategoryName.value);
-  if (success) {
-    newCategoryName.value = '';
-    showAddCategoryModal.value = false;
-  }
-};
+
 
 // --- Watcher untuk checkout (jika CheckoutForm tidak memicu refresh secara langsung) ---
 // Asumsi: cartStore memiliki state yang berubah setelah checkout berhasil
@@ -224,12 +163,27 @@ watch(() => cartStore.totalItems, async (newTotal, oldTotal) => {
     await refreshAllEssentialData();
   }
 });
+onMounted(async () => {
+  if (!productStore.products || productStore.products.length === 0 ) {
+    console.log("Produk kosong setelah mount, fetch ulang...");
+    await productStore.fetchProducts() ;
+  } else {
+    console.log("Produk sudah ada, tidak fetch ulang");
+  }
+});
 
+onMounted(async () => {
+  if (!productStore.categories || productStore.categories.length === 0 ) {
+    console.log("Produk kosong setelah mount, fetch ulang...");
+    await productStore.fetchCategories() ;
+  } 
+});
 // Anda mungkin perlu cara yang lebih eksplisit dari CheckoutForm
 // Misalnya, CheckoutForm memancarkan event "checkoutSuccess"
 // Contoh:
 // provide('refreshData', refreshAllEssentialData); // Di sini
 // inject('refreshData'); // Di CheckoutForm setelah berhasil bayar
+
 </script>
 
 

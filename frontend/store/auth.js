@@ -12,7 +12,9 @@ export const useAuthStore = defineStore('auth', {
   }),
 
    persist: {
-    storage: process.client ? localStorage : undefined, // Pastikan hanya di client-side
+    storage: process.client ? localStorage : undefined, 
+    
+    paths: ['token', 'user', 'loggedIn'],
   },
   actions: {
     // Memuat state dari localStorage saat store diinisialisasi
@@ -34,14 +36,14 @@ export const useAuthStore = defineStore('auth', {
       this.error = null;
       try {
         const config = useRuntimeConfig();
-        const response = await $fetch(`${config.public.apiBaseUrl}/login/`, {
+        const response = await $fetch(`${config.public.apiBaseUrl}token-auth/`, {
           method: 'POST',
           body: credentials,
         });
 
         this.token = response.token;
-        this.user = { id: response.user_id, username: response.username };
-        this.loggedIn = true;
+        this.user = response.user; // <<< PENTING: Simpan *seluruh* objek `response.user` di sini
+        this.loggedIn = true
 
         if (process.client) {
           localStorage.setItem('authToken', response.token);
@@ -83,5 +85,33 @@ export const useAuthStore = defineStore('auth', {
         // Atau dengan custom composable `useApiFetch`
       }
     }
+    
   },
+  getters: {
+    isAuthenticated: (state) => !!state.token && state.loggedIn,
+    
+    // Perbaikan pada getter isUserAdmin untuk keamanan lebih
+    isUserAdmin: (state) => {
+      // Pastikan state.user ada dan properti yang dibutuhkan tersedia
+      if (!state.user) {
+        return false;
+      }
+      // is_superuser adalah boolean yang dikirim langsung dari serializer User
+      // groups adalah array of strings (nama grup)
+      const isAdminGroup = Array.isArray(state.user.groups) && state.user.groups.includes('admin');
+      return state.user.is_superuser || isAdminGroup;
+    },
+
+    // Perbaikan pada getter isUserCashier untuk keamanan lebih
+    isUserCashier: (state) => {
+      // Pastikan state.user ada dan properti yang dibutuhkan tersedia
+      if (!state.user) {
+        return false;
+      }
+      const isCashierGroup = Array.isArray(state.user.groups) && state.user.groups.includes('Cashier');
+      return isCashierGroup; // Hanya perlu cek grup 'Cashier'
+    },
+  },
+
+ 
 }); 

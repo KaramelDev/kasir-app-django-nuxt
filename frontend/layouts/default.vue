@@ -1,5 +1,11 @@
 <template>
   <div class="flex h-screen bg-gray-100">
+    <div 
+      v-if="isSidebarOpen && windowWidth < 768" 
+      @click="toggleSidebar" 
+      class="fixed inset-0 bg-black opacity-50 z-30 transition-opacity duration-300 ease-in-out"
+    ></div>
+
     <aside
       :class="{
         'translate-x-0': isSidebarOpen,        // Sidebar terlihat
@@ -11,33 +17,38 @@
              flex-shrink-0 overflow-y-auto"
     >
       <div class="p-4 flex flex-col h-full">
-        <h1 class="text-2xl font-bold mb-6">CashierApp</h1>
+        <h1 class="text-2xl font-bold mb-6">Admin Dashboard</h1>
         <nav class="flex-grow">
           <ul>
             <li class="mb-2">
-              <NuxtLink to="/" class="flex items-center p-2 rounded hover:bg-gray-700" @click="closeSidebarOnMobile">
+              <NuxtLink to="/" class="flex items-center p-2 rounded hover:bg-gray-700 transition-colors duration-200" active-class="bg-blue-600" @click="closeSidebarOnMobile">
                 <Icon name="mdi:view-dashboard" class="mr-3" /> Dashboard
               </NuxtLink>
             </li>
             <li class="mb-2">
-              <NuxtLink to="/products" class="flex items-center p-2 rounded hover:bg-gray-700" @click="closeSidebarOnMobile">
+              <NuxtLink to="/products" class="flex items-center p-2 rounded hover:bg-gray-700 transition-colors duration-200" active-class="bg-blue-600" @click="closeSidebarOnMobile">
                 <Icon name="mdi:package-variant" class="mr-3" /> Produk
               </NuxtLink>
             </li>
             <li class="mb-2">
-              <NuxtLink to="/orders" class="flex items-center p-2 rounded hover:bg-gray-700" @click="closeSidebarOnMobile">
+              <NuxtLink to="/orders" class="flex items-center p-2 rounded hover:bg-gray-700 transition-colors duration-200" active-class="bg-blue-600" @click="closeSidebarOnMobile">
                 <Icon name="mdi:receipt-text-outline" class="mr-3" /> Transaksi
               </NuxtLink>
             </li>
             <li class="mb-2">
-              <NuxtLink to="/users" class="flex items-center p-2 rounded hover:bg-gray-700" @click="closeSidebarOnMobile">
+              <NuxtLink to="/admin/users" class="flex items-center p-2 rounded hover:bg-gray-700 transition-colors duration-200" active-class="bg-blue-600" @click="closeSidebarOnMobile">
                 <Icon name="mdi:account-group" class="mr-3" /> Pengguna
               </NuxtLink>
             </li>
           </ul>
         </nav>
 
-        <div class="mt-auto pt-4 border-t border-gray-700">
+        <div v-if="authStore.isAuthenticated" class="mt-auto pt-4 border-t border-gray-700">
+          <p class="text-sm mb-2">Logged in as: 
+            <span class="font-bold">
+              {{ authStore.user?.username || 'Guest' }}
+            </span>
+          </p> 
           <button @click="logout" class="w-full flex items-center p-2 rounded bg-red-600 hover:bg-red-700">
             <Icon name="mdi:logout" class="mr-3" /> Logout
           </button>
@@ -50,18 +61,16 @@
         <button @click="toggleSidebar" class="text-gray-600 focus:outline-none">
           <Icon name="mdi:menu" class="text-3xl" />
         </button>
-        <h2 class="text-xl font-bold">CashierApp</h2>
-        </header>
+        <h2 class="text-xl font-bold">Admin Dashboard</h2>
+      </header>
 
       <div
         :class="{
-          'md:ml-64': true, // Selalu ada margin di MD ke atas
-          'ml-64': isSidebarOpen && windowWidth < 768 // Tambah margin jika sidebar terbuka di mobile
+          'md:ml-64': true, 
+          'ml-64': isSidebarOpen && windowWidth < 768 
         }"
         class="flex-1 overflow-x-hidden overflow-y-auto transition-all duration-300 ease-in-out"
       >
-        <div v-if="isSidebarOpen && windowWidth < 768" @click="isSidebarOpen = false" class="fixed inset-0 bg-black opacity-50 z-30"></div>
-        
         <main class="p-4">
           <NuxtPage />
         </main>
@@ -79,14 +88,12 @@ const authStore = useAuthStore();
 const router = useRouter();
 
 const isSidebarOpen = ref(false);
-const windowWidth = ref(0); // State untuk melacak lebar jendela
+const windowWidth = ref(0);
 
-// Fungsi untuk memperbarui lebar jendela
 const updateWindowWidth = () => {
   if (process.client) {
     windowWidth.value = window.innerWidth;
-    // Otomatis buka sidebar di desktop, tutup di mobile saat resize
-    if (window.innerWidth >= 768) { // MD breakpoint
+    if (window.innerWidth >= 768) {
       isSidebarOpen.value = true;
     } else {
       isSidebarOpen.value = false;
@@ -95,7 +102,7 @@ const updateWindowWidth = () => {
 };
 
 onMounted(() => {
-  updateWindowWidth(); // Set initial width
+  updateWindowWidth();
   if (process.client) {
     window.addEventListener('resize', updateWindowWidth);
   }
@@ -111,9 +118,8 @@ const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value;
 };
 
-// Fungsi untuk menutup sidebar saat navigasi di mobile
 const closeSidebarOnMobile = () => {
-  if (windowWidth.value < 768) { // Hanya tutup di layar mobile
+  if (windowWidth.value < 768) {
     isSidebarOpen.value = false;
   }
 };
@@ -125,9 +131,8 @@ const logout = async () => {
 </script>
 
 <style scoped>
-/* Styling khusus untuk NuxtLink agar active class berfungsi */
 .router-link-active,
 .router-link-exact-active {
-  background-color: #4a5568; /* bg-gray-700 */
+  background-color: #4a5568;
 }
-</style>  
+</style>
